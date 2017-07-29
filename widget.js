@@ -1,29 +1,15 @@
 /* global THREE requirejs chilipeppr cprequire cpdefine */
 requirejs.config({
     paths: {
-        // Three: '//i2dcui.appspot.com/geturl?url=http://threejs.org/build/three.min.js',
-        Three: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r76/three',
-        ThreeTextGeometry: '//i2dcui.appspot.com/js/three/TextGeometry',
-        ThreeFontUtils: '//i2dcui.appspot.com/js/three/FontUtils',
-        ThreeHelvetiker: '//i2dcui.appspot.com/js/three/threehelvetiker'
+        Three: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three',
     },
     shim: {
-        ThreeTextGeometry: ['Three'],
-        ThreeFontUtils: ['Three', 'ThreeTextGeometry'],
-        ThreeHelvetiker: ['Three', 'ThreeTextGeometry', 'ThreeFontUtils'],
+        Three: {
+            exports: 'THREE'
+        },
     }
 });
 
-// make sure Helvetiker loads
-/*
-var ThreeHelvetiker;
-console.log("Making sure font load code run first.");
-window["_typeface_js"] = {loadFace: function(data) {
-    console.log("apparently we're supposed to load Helvetiker here???");
-    ThreeHelvetiker = data;
-}};
-console.log(window["_typeface_js"]);
-*/
 
 // Test this element. This code is auto-removed by the chilipeppr.load()
 cprequire_test(["inline:com-chilipeppr-widget-autolevel"], function (autolevel) {
@@ -31,21 +17,18 @@ cprequire_test(["inline:com-chilipeppr-widget-autolevel"], function (autolevel) 
     autolevel.init();
     
     $('#com-chilipeppr-widget-autolevel').css('margin', '30px');
-    $('#com-chilipeppr-widget-autolevel').css('position', 'relative');
+    $('#com-chilipeppr-widget-autolevel').css('position', 'absolute');
     $('#com-chilipeppr-widget-autolevel').css('background', 'none');
-    $('body').prepend('<div id="3dviewer"></div>');
+    
+    $('body').prepend('<div id="3dviewer" style="width: 100%;"></div>');
 
     chilipeppr.load(
         "#3dviewer", 
-        //"http://fiddle.jshell.net/chilipeppr/y3HRF/show/light/", 
-        "http://raw.githubusercontent.com/chilipeppr/widget-3dviewer/master/auto-generated-widget.html",
+        "http://raw.githubusercontent.com/dchote/widget-3dviewer/master/auto-generated-widget.html",
         function() {
         cprequire(['inline:com-chilipeppr-widget-3dviewer'], function (threed) {
             threed.init({doMyOwnDragDrop: true});
             $('#com-chilipeppr-widget-3dviewer .panel-heading').addClass('hidden');
-            //autolevel.addRegionTo3d();
-            //autolevel.loadFileFromLocalStorageKey('com-chilipeppr-widget-autolevel-recent8');
-            //autolevel.toggleShowMatrix();
         });
     });
     
@@ -89,14 +72,18 @@ cprequire_test(["inline:com-chilipeppr-widget-autolevel"], function (autolevel) 
     });
     
     var testFinalData = [];
-    
-    //autolevel.loadTestData(testFinalData);
-    //autolevel.loadFileFromLocalStorageKey('com-chilipeppr-widget-autolevel-recent6');
-    
 } /*end_test*/ );
 
 
-cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHelvetiker", "Three"], function () {
+// Bring THREE in to global scope
+cpdefine('Three', ['https://cdnjs.cloudflare.com/ajax/libs/three.js/86/three.js'], function ( THREE ) {
+    if (typeof window !== 'undefined') {
+        window.THREE = THREE;
+        return THREE;
+    }
+});
+
+cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "Three"], function () {
     
     return {
         id: "com-chilipeppr-widget-autolevel",
@@ -117,10 +104,14 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
         foreignSubscribe: {
             "/com-chilipeppr-widget-3dviewer/recv3dObject" : "When we request a /com-chilipeppr-widget-3dviewer/request3dObject we get back this signal and the payload is the actual user object so we can analyze it."
         },
+        
+        textFont: false, // three.js font object
+        
         init: function () {
 
             this.forkSetup();
-
+            this.downloadFont();
+            
             $('#com-chilipeppr-widget-autolevel-showregion').click(this.addRegionTo3d.bind(this));
             $('#com-chilipeppr-widget-autolevel-hideregion').click(this.removeRegionFrom3d.bind(this));
             $('#com-chilipeppr-widget-autolevel-body .autolevel-elem').blur(this.formUpdate.bind(this));
@@ -304,6 +295,7 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
                 name: localStorage.getItem(key + '-name'), 
                 lastModified: localStorage.getItem(key + '-lastMod')
             };
+            
             console.log("loading probe data. localStorage.key:", key, "info:", info);
             
             // load the data
@@ -312,10 +304,8 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
             this.probes = $.parseJSON(pd);
             //console.log("new probe data:", that.probes);
             this.status("Loaded probe data \"" + info.name + "\"");
-            // if we call this, we'll get the user3dObject
-            //this.getBbox();
-            //this.removeRegionFrom3d();
-            //this.refreshProbeMatrix();
+            
+            
             if (!this.isMatrixShowing) 
                 this.toggleShowMatrix();
             else
@@ -466,27 +456,7 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
             
             // show the gcode
             var gcodeline = this.envelope(options);
-                        
-            //var gcode = this.user3dObject;
-            /*
-            if (gcode == null) {
-                console.log("had to run envelope()");
-                this.envelope();
-                gcode = this.user3dObject;
-            }
-            */
-            //console.log("gcode:", gcode);
-            /*
-            var gcodeline = [];
-            gcode.userData.lines.forEach(function(item) {
-                if ('origtext' in item.args)
-                    gcodeline.push(item.args.origtext);
-                else if ('text' in item.args)
-                    gcodeline.push(item.args.text);
-                else
-                    gcodeline.push("huh? no gcode text???");
-            });
-            */
+            
             var gcodetext = gcodeline.join("\n");
             
             $('#com-chilipeppr-widget-modal-autolevel-view .modal-body textarea').val(gcodetext);
@@ -1494,21 +1464,21 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
         },
         autoFillData: function() {
             // read the 3d viewer data and auto-fill the extents
-            var b = this.getBbox();
+            var box = this.getBbox();
             
             var stepsevery = $('#com-chilipeppr-widget-autolevel-body .grid-steps').val();
             stepsevery = parseFloat(stepsevery);
             
             // Bug fix by Andrew Powell to get gcode that doesn't start at 0,0, i.e. has negative X or Y values in it, to get bounding box auto-fill region to work correctly
-            var endx = (stepsevery * (parseInt((b.box.max.x - b.box.min.x) / stepsevery) + 1)) + b.box.min.x;
-            var endy = (stepsevery * (parseInt((b.box.max.y - b.box.min.y) / stepsevery) + 1)) + b.box.min.y;
+            var endx = (stepsevery * (parseInt((box.max.x - box.min.x) / stepsevery) + 1)) + box.min.x;
+            var endy = (stepsevery * (parseInt((box.max.y - box.min.y) / stepsevery) + 1)) + box.min.y;
 
             //var endx = stepsevery * (parseInt((b.box.max.x - b.box.min.x) / stepsevery) + 1);
             //var endy = stepsevery * (parseInt((b.box.max.y - b.box.min.y) / stepsevery) + 1);
             
             //bbox.box.min.x
-            $('#com-chilipeppr-widget-autolevel-body .start-x').val(b.box.min.x);
-            $('#com-chilipeppr-widget-autolevel-body .start-y').val(b.box.min.y);
+            $('#com-chilipeppr-widget-autolevel-body .start-x').val(box.min.x);
+            $('#com-chilipeppr-widget-autolevel-body .start-y').val(box.min.y);
             $('#com-chilipeppr-widget-autolevel-body .end-x').val(endx);
             $('#com-chilipeppr-widget-autolevel-body .end-y').val(endy);
             this.formUpdate();
@@ -1533,17 +1503,22 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
             chilipeppr.unsubscribe("/com-chilipeppr-widget-3dviewer/recv3dObject", this, this.recv3dObject);
             
             // then get its bounding box
-            var helper = new THREE.BoundingBoxHelper(this.user3dObject, 0xff0000);
-            helper.update();
-            this.bboxHelper = helper;
+            if (!this.bboxHelper) {
+                var helper = new THREE.BoxHelper(this.user3dObject, 0xff0000);
+                this.bboxHelper = helper;
+            }
             // If you want a visible bounding box
             //scene.add(helper);
             // If you just want the numbers
-            console.log("min bbox:", helper.box.min);
-            console.log("max bbox:", helper.box.max);
+            
+            var box = new THREE.Box3();
+            box.setFromObject(this.bboxHelper);
+            
+            console.log("min bbox:", box.min);
+            console.log("max bbox:", box.max);
             
             //chilipeppr.publish("/com-chilipeppr-widget-3dviewer/sceneadd", this.bboxHelper);
-            return this.bboxHelper;
+            return box;
             
         },
         calcSteps: function() {
@@ -1579,6 +1554,7 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
         },
         regionObj: null,
         isRegionShowing: false,
+        
         addRegionTo3d: function() {
             console.log("addRegionTo3d");
             
@@ -1717,238 +1693,76 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "ThreeHe
             size: 10
         }
         */
-        makeSprite: function(vals) {
+        
+        
+        downloadFont: function() {
+            console.log('downloading font');
+            
+            var that = this;
+            $.ajax({
+                url: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/fonts/helvetiker_regular.typeface.json',
+                async: false,
+                dataType: 'json',
+                success: function(response) {
+                    that.textFont = new THREE.Font(response);
+                    if (that.textFont) {
+                        console.log('font download success');
+                    }
+                }
+            });
+        },
+        makeText: function(vals) {
+            if (!this.textFont) {
+                console.log('no font defined');
+                return;
+            }
             var shapes, geom, mat, mesh;
+            console.log('about to make text: ', vals.text);
             
-            //console.log("Do we have the global ThreeHelvetiker font:", ThreeHelvetiker);
+            var textGeometry = new THREE.TextGeometry(vals.text, {
+                font: this.textFont,
+                size: vals.size ? vals.size : 10,
+                height: 0.1,
+                curveSegments: 12,
+            });
             
-            THREE.FontUtils.loadFace(ThreeHelvetiker);
-            shapes = THREE.FontUtils.generateShapes( vals.text, {
-                font: "helvetiker",
-                //weight: "normal",
-                size: vals.size ? vals.size : 10
-            } );
-            geom = new THREE.ShapeGeometry( shapes );
-            mat = new THREE.MeshBasicMaterial({
+            textMaterial = new THREE.MeshBasicMaterial({
                 color: vals.color,
                 transparent: true,
-                opacity: 0.8,
+                opacity: vals.opacity ? vals.opacity : 0.5,
             });
-            mesh = new THREE.Mesh( geom, mat );
             
+            mesh = new THREE.Mesh(textGeometry, textMaterial);
+        
             mesh.position.x = vals.x;
             mesh.position.y = vals.y;
             mesh.position.z = vals.z;
+        
+            mesh.castShadow = false;
             
             return mesh;
-            
-            
         },
-        makeSpriteOld: function(vals) {
-            //create image
-            var bitmap = document.createElement('canvas');
-            var g = bitmap.getContext('2d');
-            bitmap.width = 100;
-            bitmap.height = 100;
-            g.font = 'Bold 20px Arial';
+        
+        makeSprite: function(vals) {
+            var shapes, geom, mat, mesh;
             
-            g.fillStyle = 'white';
-            g.fillText(vals.text, 0, 20);
-            //g.strokeStyle = 'black';
-            //g.strokeText(text, 0, 20);
-            
-            // canvas contents will be used for a texture
-            var texture = new THREE.Texture(bitmap) 
-            texture.needsUpdate = true;
-        },
-        makeSprite2: function (vals) {
-            var rendererType = "webgl";
-            var canvas = document.createElement('canvas'),
-                context = canvas.getContext('2d'),
-                metrics = null,
-                textHeight = 20,
-                textWidth = 0,
-                actualFontSize = 10;
-            var txt = vals.text;
-            if (vals.size) actualFontSize = vals.size;
-
-            context.font = "normal " + textHeight + "px Arial";
-            metrics = context.measureText(txt);
-            var textWidth = metrics.width;
-
-            canvas.width = textWidth;
-            canvas.height = textHeight;
-            context.font = "normal " + textHeight + "px Arial";
-            context.textAlign = "center";
-            context.textBaseline = "middle";
-            //context.fillStyle = "#ff0000";
-            context.fillStyle = vals.color;
-
-            context.fillText(txt, textWidth / 2, textHeight / 2);
-
-            var texture = new THREE.Texture(canvas);
-            texture.needsUpdate = true;
-
-            var textObject = new THREE.Mesh(
-                new THREE.PlaneGeometry(canvas.width, canvas.height),
-                new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.DoubleSide
-                }));
-            textObject.position.x = vals.x;
-            textObject.position.y = vals.y;
-            textObject.position.z = vals.z;
-            
-            /*
-            var material = new THREE.SpriteMaterial({
-                map: texture,
-                useScreenCoordinates: true
-            });
-            material.transparent = true;
             var textObject = new THREE.Object3D();
-            textObject.position.x = vals.x;
-            textObject.position.y = vals.y;
-            textObject.position.z = vals.z;
-            var sprite = new THREE.Sprite(material);
-            textObject.textHeight = actualFontSize;
-            textObject.textWidth = (textWidth / textHeight) * textObject.textHeight;
-            if (rendererType == "2d") {
-                sprite.scale.set(textObject.textWidth / textWidth, textObject.textHeight / textHeight, 1);
-            } else {
-                sprite.scale.set(textWidth / textHeight * actualFontSize, actualFontSize, 1);
-            }
             
-            textObject.add(sprite);
-            */
-
-            //scene.add(textObject);
+            var mesh = this.makeText({
+                x: vals.x,
+                y: vals.y,
+                z: vals.z,
+                text: vals.text,
+                color: vals.color,
+                opacity: 0.8,
+                size: 1
+            });
+            
+            textObject.add(mesh);
+            
             return textObject;
         },
-        createText: function(text) {
-            
-            
-            var height = 2,
-				size = 70,
-				hover = 30,
-
-				curveSegments = 4,
-
-				bevelThickness = 2,
-				bevelSize = 1.5,
-				bevelSegments = 3,
-				bevelEnabled = false,
-
-				font = "helvetiker", // helvetiker, optimer, gentilis, droid sans, droid serif
-				weight = "normal", // normal bold
-				style = "normal"; // normal italic
-            
-            var mirror = false;
-            
-            var material = new THREE.MeshFaceMaterial( [ 
-					new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.FlatShading } ), // front
-					new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.SmoothShading } ) // side
-				] );
-
-            var group = new THREE.Object3D();
-            group.position.y = -10;
-
-            //scene.add( group );
-            
-            var textGeo = new THREE.TextGeometry( text, {
-                
-                size: size,
-                height: height,
-                curveSegments: curveSegments,
-                
-                font: font,
-                weight: weight,
-                style: style,
-                
-                bevelThickness: bevelThickness,
-                bevelSize: bevelSize,
-                bevelEnabled: bevelEnabled,
-                
-                material: 0,
-                extrudeMaterial: 1
-                
-            });
-            
-            textGeo.computeBoundingBox();
-            textGeo.computeVertexNormals();
-            
-            // "fix" side normals by removing z-component of normals for side faces
-            // (this doesn't work well for beveled geometry as then we lose nice curvature around z-axis)
-            
-            if ( ! bevelEnabled ) {
-                
-                var triangleAreaHeuristics = 0.1 * ( height * size );
-                
-                for ( var i = 0; i < textGeo.faces.length; i ++ ) {
-                    
-                    var face = textGeo.faces[ i ];
-                    
-                    if ( face.materialIndex == 1 ) {
-                        
-                        for ( var j = 0; j < face.vertexNormals.length; j ++ ) {
-                            
-                            face.vertexNormals[ j ].z = 0;
-                            face.vertexNormals[ j ].normalize();
-                            
-                        }
-                        
-                        var va = textGeo.vertices[ face.a ];
-                        var vb = textGeo.vertices[ face.b ];
-                        var vc = textGeo.vertices[ face.c ];
-                        
-                        var s = THREE.GeometryUtils.triangleArea( va, vb, vc );
-                        
-                        if ( s > triangleAreaHeuristics ) {
-                            
-                            for ( var j = 0; j < face.vertexNormals.length; j ++ ) {
-                                
-                                face.vertexNormals[ j ].copy( face.normal );
-                                
-                            }
-                            
-                        }
-                        
-                    }
-                    
-                }
-                
-            }
-            
-            var centerOffset = -0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
-            
-            var textMesh1 = new THREE.Mesh( textGeo, material );
-            
-            textMesh1.position.x = centerOffset;
-            textMesh1.position.y = hover;
-            textMesh1.position.z = 0;
-            
-            textMesh1.rotation.x = 0;
-            textMesh1.rotation.y = Math.PI * 2;
-            
-            group.add( textMesh1 );
-            
-            if ( mirror ) {
-                
-                textMesh2 = new THREE.Mesh( textGeo, material );
-                
-                textMesh2.position.x = centerOffset;
-                textMesh2.position.y = -hover;
-                textMesh2.position.z = height;
-                
-                textMesh2.rotation.x = Math.PI;
-                textMesh2.rotation.y = Math.PI * 2;
-                
-                group.add( textMesh2 );
-                
-            }
-            
-            return group;
-            
-        },
+        
         forkSetup: function () {
             var topCssSelector = '#' + this.id;
             
