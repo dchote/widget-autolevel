@@ -1675,6 +1675,7 @@ cpdefine("inline:com-chilipeppr-widget-autolevel", ["chilipeppr_ready", "Three"]
             chilipeppr.publish("/com-chilipeppr-widget-3dviewer/sceneadd", this.regionObj);
             this.isRegionShowing = true;
             
+            chilipeppr.publish('/com-chilipeppr-widget-3dviewer/wakeanimate', "");
         },
         removeRegionFrom3d: function() {
             if (this.isRegionShowing == true) {
